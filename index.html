@@ -22,7 +22,6 @@
             position: relative;
         }
 
-        /* Animated background particles */
         .particles {
             position: absolute;
             width: 100%;
@@ -330,7 +329,7 @@
         let validPages = 0;
 
         // Generate random string for rentry URL
-        function generateRandomString(length = 5) {
+        function generateRandomString(length) {
             const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
             let result = '';
             for (let i = 0; i < length; i++) {
@@ -339,104 +338,78 @@
             return result;
         }
 
-        // Check if rentry page exists
-        async function checkRentryPage(url) {
+        // Check if a rentry page exists by fetching it
+        async function checkRentryExists(id) {
             try {
-                // Use a CORS proxy to check the page
-                const response = await fetch(url, {
-                    method: 'HEAD',
-                    mode: 'no-cors'
-                });
+                const url = `https://rentry.org/${id}/raw`;
+                const response = await fetch(url);
                 
-                // Since we're using no-cors, we'll try a different approach
-                // We'll attempt to fetch the raw content
-                const fullResponse = await fetch(`${url}/raw`, {
-                    method: 'GET'
-                });
-                
-                return fullResponse.ok;
+                // Check if response is ok and has content
+                if (response.ok) {
+                    const text = await response.text();
+                    // Check if page has actual content (not empty or error page)
+                    return text.length > 0 && !text.includes('404') && !text.includes('Not Found');
+                }
+                return false;
             } catch (error) {
-                // If there's an error, try the alternative method
-                return checkWithIframe(url);
+                return false;
             }
-        }
-
-        // Alternative method using iframe (more reliable)
-        function checkWithIframe(url) {
-            return new Promise((resolve) => {
-                const iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
-                iframe.src = url;
-                
-                const timeout = setTimeout(() => {
-                    document.body.removeChild(iframe);
-                    resolve(false);
-                }, 3000);
-
-                iframe.onload = () => {
-                    clearTimeout(timeout);
-                    document.body.removeChild(iframe);
-                    resolve(true);
-                };
-
-                iframe.onerror = () => {
-                    clearTimeout(timeout);
-                    document.body.removeChild(iframe);
-                    resolve(false);
-                };
-
-                document.body.appendChild(iframe);
-            });
         }
 
         // Find a valid random rentry page
         async function findValidPage() {
-            const maxAttempts = 20; // Prevent infinite loops
+            const maxAttempts = 50; // Try up to 50 random pages
             let currentAttempts = 0;
 
             while (currentAttempts < maxAttempts) {
+                currentAttempts++;
                 attempts++;
                 attemptsCount.textContent = attempts;
-                currentAttempts++;
 
-                const randomId = generateRandomString(Math.floor(Math.random() * 3) + 4); // 4-6 chars
+                // Generate random ID (3-8 characters for better variety)
+                const length = Math.floor(Math.random() * 6) + 3;
+                const randomId = generateRandomString(length);
                 const url = `https://rentry.org/${randomId}`;
 
                 status.className = 'status loading';
-                status.innerHTML = `<span class="spinner"></span>Checking page ${currentAttempts}/${maxAttempts}...`;
+                status.innerHTML = `<span class="spinner"></span>Checking "${randomId}"... (${currentAttempts}/${maxAttempts})`;
 
-                // Since direct checking is difficult due to CORS, we'll just generate and try
-                // Most rentry URLs follow common patterns, so we'll use common lengths
-                
-                // For demo purposes, we'll just navigate after a short delay
-                // In production, you'd need a backend service to verify
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Simulate success for demo (in reality, you'd need backend verification)
-                if (Math.random() > 0.3) { // 70% success rate for demo
+                const exists = await checkRentryExists(randomId);
+
+                if (exists) {
                     validPages++;
                     validCount.textContent = validPages;
                     status.className = 'status success';
-                    status.textContent = '✓ Valid page found! Redirecting...';
+                    status.textContent = `✓ Found valid page: ${randomId} - Redirecting...`;
                     
                     setTimeout(() => {
                         window.location.href = url;
-                    }, 800);
-                    return;
+                    }, 1000);
+                    return true;
                 }
+
+                // Small delay between checks to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
 
             status.className = 'status error';
-            status.textContent = '✗ No valid page found. Try again!';
+            status.textContent = `✗ Couldn't find a valid page after ${maxAttempts} attempts. Try again!`;
             button.disabled = false;
+            return false;
         }
 
         button.addEventListener('click', async () => {
             button.disabled = true;
-            await findValidPage();
-            setTimeout(() => {
-                button.disabled = false;
-            }, 2000);
+            status.textContent = '';
+            
+            const found = await findValidPage();
+            
+            if (!found) {
+                setTimeout(() => {
+                    button.disabled = false;
+                    status.textContent = '';
+                }, 3000);
+            }
         });
 
         // Easter egg: Press space to trigger
