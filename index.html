@@ -1,243 +1,153 @@
+# create the file
+cat > index.html <<'EOF'
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rentry Randomizer</title>
-    <style>
-        :root {
-            --bg-color: #0f0f11;
-            --card-bg: #18181b;
-            --text-primary: #e4e4e7;
-            --text-secondary: #a1a1aa;
-            --accent-color: #8b5cf6;
-            --accent-hover: #7c3aed;
-            --error-color: #ef4444;
-            --success-color: #22c55e;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-        }
-
-        .container {
-            text-align: center;
-            padding: 2rem;
-            max-width: 600px;
-            width: 100%;
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(to right, #fff, #a1a1aa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        p.subtitle {
-            color: var(--text-secondary);
-            margin-bottom: 3rem;
-        }
-
-        .magic-btn {
-            background-color: var(--accent-color);
-            color: white;
-            border: none;
-            padding: 1.2rem 3rem;
-            font-size: 1.25rem;
-            font-weight: 600;
-            border-radius: 9999px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.4);
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            min-width: 220px;
-        }
-
-        .magic-btn:hover {
-            background-color: var(--accent-hover);
-            transform: translateY(-3px);
-        }
-
-        .magic-btn:disabled {
-            background-color: #3f3f46;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .spinner {
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s linear infinite;
-            display: none;
-        }
-
-        .loading .spinner { display: block; }
-
-        .status-area {
-            margin-top: 2rem;
-            height: 24px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .status-msg {
-            font-size: 0.9rem;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .status-msg.visible { opacity: 1; }
-        .status-msg.error { color: var(--error-color); }
-        .status-msg.success { color: var(--success-color); }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
+<meta charset="UTF-8">
+<title>Random REntry Explorer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{
+    --bg:#0d0d0d;
+    --fg:#e0e0e0;
+    --accent:#3a86ff;
+    --accent-dark:#2c6ed5;
+    --radius:12px;
+    --shadow:rgba(0,0,0,0.4);
+  }
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:system-ui,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--fg);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+  }
+  #container{
+    max-width:90vw;
+    padding:2rem;
+  }
+  button{
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    border-radius:var(--radius);
+    font-size:1.5rem;
+    padding:1.5rem 3rem;
+    cursor:pointer;
+    transition:background .2s,transform .1s,box-shadow .2s;
+    box-shadow:0 4px 12px var(--shadow);
+  }
+  button:hover{
+    background:var(--accent-dark);
+    box-shadow:0 6px 16px var(--shadow);
+  }
+  button:active{
+    transform:scale(0.98);
+  }
+  #spinner{
+    margin-top:1.5rem;
+    width:48px;
+    height:48px;
+    border:5px solid rgba(255,255,255,.2);
+    border-top:5px solid var(--accent);
+    border-radius:50%;
+    animation:spin .9s linear infinite;
+    display:none;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #msg{
+    margin-top:1rem;
+    font-size:.9rem;
+    opacity:.8;
+  }
+</style>
 </head>
 <body>
+<div id="container">
+  <button id="goBtn">🚀 Go to a random REntry page</button>
+  <div id="spinner"></div>
+  <div id="msg"></div>
+</div>
 
-    <div class="container">
-        <h1>Explore the Void</h1>
-        <p class="subtitle">Discover a random Rentry page. Verified and valid.</p>
+<script>
+/* ---------- CONFIG ---------- */
+const MIN_SLUG_LEN = 5;          // most REntry slugs are 5‑6 chars
+const MAX_SLUG_LEN = 6;
+const MAX_ATTEMPTS = 15;         // try a few times before giving up
+const TIMEOUT_MS   = 5000;       // 5 s per request
+const PROXY_PREFIX = 'https://api.allorigins.win/get?url='; // CORS‑proxy
 
-        <button id="randomBtn" class="magic-btn">
-            <span class="spinner"></span>
-            <span class="btn-text">Launch Discovery</span>
-        </button>
+/* ---------- HELPERS ---------- */
+function randomSlug(){
+  const len = Math.floor(Math.random()*(MAX_SLUG_LEN-MIN_SLUG_LEN+1))+MIN_SLUG_LEN;
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let s = '';
+  for(let i=0;i<len;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
 
-        <div class="status-area">
-            <span id="statusMsg" class="status-msg"></span>
-        </div>
-    </div>
+/* Fetch through AllOrigins – returns {ok, html} */
+function fetchPage(slug){
+  const target = `https://rentry.org/${slug}`;
+  const proxy = `${PROXY_PREFIX}${encodeURIComponent(target)}`;
+  return new Promise(resolve=> {
+    const controller = new AbortController();
+    const timer = setTimeout(()=>controller.abort(),TIMEOUT_MS);
+    fetch(proxy,{signal:controller.signal})
+      .then(res=> {
+        clearTimeout(timer);
+        if(!res.ok) return resolve({ok:false});
+        return res.json().then(data=>resolve({ok:true, html:data.contents}));
+      })
+      .catch(()=> {
+        clearTimeout(timer);
+        resolve({ok:false});
+      });
+  });
+}
 
-    <script>
-        const btn = document.getElementById('randomBtn');
-        const statusMsg = document.getElementById('statusMsg');
-        const btnText = document.querySelector('.btn-text');
+/* Heuristic: real pages are noticeably larger than the empty template */
+function looksLikeRealPage(html){
+  // empty template is ~400 bytes; give a comfortable margin
+  return html && html.length > 800;
+}
 
-        // --- Configuration ---
-        // Use a CORS proxy that works well with GitHub Pages
-        const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
-        
-        // Rentry API endpoint
-        const RENTRY_API = 'https://rentry.co/api/v3';
+/* ---------- MAIN ---------- */
+const btn = document.getElementById('goBtn');
+const spinner = document.getElementById('spinner');
+const msg = document.getElementById('msg');
 
-        btn.addEventListener('click', async () => {
-            if (btn.disabled) return;
-            
-            setLoading(true);
-            clearStatus();
+btn.addEventListener('click', async ()=>{
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  msg.textContent = '';
 
-            try {
-                const validUrl = await findValidRentry();
-                if (validUrl) {
-                    showStatus(`Found valid page! Redirecting...`, 'success');
-                    setTimeout(() => {
-                        window.location.href = validUrl;
-                    }, 800);
-                } else {
-                    showStatus('Could not find a valid page. Try again.', 'error');
-                    setLoading(false);
-                }
-            } catch (err) {
-                console.error(err);
-                showStatus('Error: ' + err.message, 'error');
-                setLoading(false);
-            }
-        });
+  for(let attempt=1; attempt<=MAX_ATTEMPTS; attempt++){
+    const slug = randomSlug();
+    const {ok, html} = await fetchPage(slug);
+    if(ok && looksLikeRealPage(html)){
+      const url = `https://rentry.org/${slug}`;
+      // redirect – change to window.open(url,'_blank') if you prefer a new tab
+      window.location.href = url;
+      return;
+    }
+    msg.textContent = `Attempt ${attempt}/${MAX_ATTEMPTS}: no real page found, trying another…`;
+  }
 
-        async function findValidRentry(retries = 15) {
-            for (let i = 0; i < retries; i++) {
-                const code = generateRandomCode();
-                const url = `https://rentry.org/${code}`;
-                
-                // Try to verify using the API via proxy
-                const isValid = await verifyViaApi(code);
-                
-                if (isValid) {
-                    return url;
-                }
-            }
-            return null;
-        }
-
-        function generateRandomCode() {
-            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-            const length = Math.floor(Math.random() * 5) + 6;
-            let result = '';
-            for (let i = 0; i < length; i++) {
-                result += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return result;
-        }
-
-        // Verify using Rentry's JSON API via CORS proxy
-        async function verifyViaApi(code) {
-            try {
-                // Construct the API URL
-                const apiUrl = `${RENTRY_API}/raw/${code}`;
-                const proxiedUrl = CORS_PROXY + encodeURIComponent(apiUrl);
-                
-                const response = await fetch(proxiedUrl);
-                
-                if (!response.ok) return false;
-                
-                const data = await response.json();
-                
-                // API returns 404 in JSON if not found
-                if (data.status === 404) return false;
-                
-                // Check if content exists and is not just whitespace
-                if (data.content && data.content.trim().length > 10) {
-                    return true;
-                }
-                
-                return false;
-            } catch (error) {
-                // If API fails, return false to try next code
-                console.log("Verification failed for code:", code, error);
-                return false;
-            }
-        }
-
-        function setLoading(isLoading) {
-            btn.disabled = isLoading;
-            if (isLoading) {
-                btn.classList.add('loading');
-                btnText.textContent = 'Searching...';
-            } else {
-                btn.classList.remove('loading');
-                btnText.textContent = 'Launch Discovery';
-            }
-        }
-
-        function showStatus(message, type) {
-            statusMsg.textContent = message;
-            statusMsg.className = `status-msg ${type} visible`;
-        }
-
-        function clearStatus() {
-            statusMsg.classList.remove('visible');
-            setTimeout(() => { statusMsg.textContent = ''; }, 300);
-        }
-    </script>
+  // All attempts failed
+  msg.textContent = 'Sorry, couldn’t locate a valid REntry page after several tries. Please try again later.';
+  btn.disabled = false;
+  spinner.style.display = 'none';
+});
+</script>
 </body>
 </html>
+EOF
+
+git add index.html
+git commit -m "Add site entry point"
+git push origin main   # or whatever branch you are using
