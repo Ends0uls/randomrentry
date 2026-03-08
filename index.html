@@ -1,241 +1,524 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Random Rentry Explorer</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-    /* ---------- BASIC RESET & DARK‑MODE BG ---------- */
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{
-        font-family:'Segoe UI',Tahoma,Gene,Verdana,sans-serif;
-        background:linear-gradient(135deg,#0f0f1e 0%,#1a1a2e 50%,#16213e 100%);
-        min-height:100vh;
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        overflow:hidden;
-        position:relative;
-    }
-
-    /* ---------- FLOATING PARTICLES ---------- */
-    .particles{position:absolute;width:100%;height:100%;overflow:hidden;z-index:0}
-    .particle{
-        position:absolute;width:3px;height:3px;background:rgba(139,92,246,0.3);
-        border-radius:50%;animation:float 15s infinite;
-    }
-    @keyframes float{
-        0%,100%{transform:translateY(0) translateX(0);opacity:0}
-        10%,90%{opacity:1}
-        100%{transform:translateY(-100vh) translateX(100px);opacity:0}
-    }
-
-    /* ---------- MAIN CONTAINER ---------- */
-    .container{
-        position:relative;z-index:1;text-align:center;padding:2rem;
-        max-width:600px;width:100%;
-    }
-    h1{
-        font-size:3.5rem;font-weight:700;
-        background:linear-gradient(135deg,#667eea,764ba2);
-        -webkit-background-clip=text;-webkit-text-fill-color:transparent;
-        margin-bottom:1rem;animation:fadeInDown .8s ease;
-    }
-    .subtitle{color:#a0a0b8;font-size:1.1rem;margin-bottom:3rem;animation:fadeInUp .8s ease;}
-
-    /* ---------- BUTTON & GLOW ---------- */
-    .button-container{position:relative;display:inline-block;animation:fadeInScale 1s ease;}
-    .glow-effect{
-        position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-        width:300px;height:300px;background:radial-gradient(circle,rgba(139,92,246,0.3)0%,transparent 70%);
-        border-radius:50%;filter:blur(40px);animation:pulse 3s ease-in-out infinite;pointer-events:none;
-    }
-    @keyframes pulse{
-        0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.5}
-        50%{transform:translate(-50%,-50%) scale(1.2);opacity:.8}
-    }
-    #randomButton{
-        position:relative;padding:2rem 4rem;font-size:1.5rem;font-weight:600;color:#fff;
-        background:linear-gradient(135deg,#667eea,764ba2);border:none;border-radius:50px;
-        cursor:pointer;transition:all .3s ease;box-shadow:0 10px 40px rgba(139,92,246,.4);
-        overflow:hidden;
-    }
-    #randomButton::before{
-        content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
-        background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);
-        transition:left .5s;
-    }
-    #randomButton:hover::before{left:100%}
-    #randomButton:hover{transform:translateY(-5px);box-shadow:0 15px 50px rgba(139,92,246,.6)}
-    #randomButton:active{transform:translateY(-2px)}
-    #randomButton:disabled{cursor:not-allowed;opacity:.6;transform:none}
-
-    /* ---------- STATUS MESSAGE ---------- */
-    .status{
-        margin-top:2rem;color:#a0a0b8;font-size:1rem;min-height:30px;animation:fadeIn .5s ease;
-    }
-    .status.loading{color:#fbbf24}
-    .status.success{color:#10b981}
-    .status.error{color:#ef4444}
-    .spinner{
-        display:inline-block;width:20px;height:20px;border:3px solid rgba(255,255,255,.3);
-        border-radius:50%;border-top-color:#667eea;animation:spin .8s linear infinite;
-        margin-right:10px;vertical-align:middle;
-    }
-    @keyframes spin{to{transform:rotate(360deg)}}
-    @keyframes fadeInDown{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes fadeInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes fadeInScale{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
-    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-
-    /* ---------- STATS ---------- */
-    .stats{
-        margin-top:3rem;padding:1.5rem;background:rgba(255,255,255,.05);
-        border-radius:20px;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);
-    }
-    .stats-item{display:inline-block;margin:0 1.5rem;color:#a0a0b8}
-    .stats-number{
-        display:block;font-size:2rem;font-weight:700;
-        background:linear-gradient(135deg,#667eea,764ba2);
-        -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-    }
-    .stats-label{font-size:.9rem;margin-top:.5rem}
-    @media(max-width:768px){
-        h1{font-size:2.5rem}
-        #randomButton{padding:1.5rem 3rem;font-size:1.2rem}
-        .stats-item{display:block;margin:1rem 0}
-    }
-</style>
-</head>
-<body>
-
-<div class="particles" id="particles"></div>
-
-<div class="container">
-    <h1>✨ Rentry Explorer</h1>
-    <p class="subtitle">Discover random pages across the Rentry universe</p>
-
-    <div class="button-container">
-        <div class="glow-effect"></div>
-        <button id="randomButton">🎲 Take Me Somewhere</button>
-    </div>
-
-    <div class="status" id="status"></div>
-
-    <div class="stats">
-        <div class="stats-item">
-            <span class="stats-number" id="attemptsCount">0</span>
-            <span class="stats-label">Attempts</span>
-        </div>
-        <div class="stats-item">
-            <span class="stats-number" id="validCount">0</span>
-            <span class="stats-label">Valid Pages</span>
-        </div>
-    </div>
-</div>
-
-<script>
-/* ---------- PARTICLE BACKGROUND ---------- */
-const particles = document.getElementById('particles');
-for(let i=0;i<50;i++){
-    const p=document.createElement('div');
-    p.className='particle';
-    p.style.left=Math.random()*100+'%';
-    p.style.animationDelay=Math.random()*15+'s';
-    p.style.animationDuration=(Math.random()*10+10)+'s';
-    particles.appendChild(p);
-}
-
-/* ---------- UI ELEMENTS ---------- */
-const btn=document.getElementById('randomButton');
-const status=document.getElementById('status');
-const attemptsEl=document.getElementById('attemptsCount');
-const validEl=document.getElementById('validCount');
-
-let attempts=0, validPages=0;
-
-/* ---------- RANDOM ID GENERATOR ---------- */
-function randomId(len){
-    const chars='abcdefghijklmnopqrstuvwxyz0123456789';
-    let out='';
-    for(let i=0;i<len;i++) out+=chars[Math.floor(Math.random()*chars.length)];
-    return out;
-}
-
-/* ---------- PAGE VALIDATION ---------- */
-async function pageIsValid(id){
-    const rawUrl=`https://rentry.org/${id}/raw`;
-    try{
-        const resp=await fetch(rawUrl,{method:'GET',mode:'cors'}); // CORS is allowed for the raw endpoint
-        if(!resp.ok) return false;
-        const txt=await resp.text();
-
-        // 1️⃣ non enough content
-        if(txt.length<20) return false;
-
-        // 2️⃣ reject typical 404/ error messages
-        const lowered=txt.toLowerCase();
-        if(lowered.includes('404')||lowered.includes('not found')||
-           lowered.includes('error')||lowered.includes('page not found')) return false;
-
-        // 3️⃣ otherwise we consider it a real paste
-        return true;
-    }catch(e){
-        // network error or CORS block → treat as invalid
-        return false;
-    }
-}
-
-/* ---------- FIND A VALID PAGE ---------- */
-async function findValidPage(){
-    const maxAttempts=50; // give up after this many tries
-    while(attempts<maxAttempts){
-        attempts++;
-        attemptsEl.textContent=attempts;
-
-        const idLen=Math.floor(Math.random()*6)+3; // 3‑8 characters – typical Rentry IDs
-        const id=randomId(idLen);
-        const displayUrl=`https://rentry.org/${id}`;
-
-        status.className='status loading';
-        status.innerHTML=`<span class="spinner"></span>Checking "${id}"… (${attempts}/${maxAttempts})`;
-
-        const ok=await pageIsValid(id);
-        if(ok){
-            validPages++;
-            validEl.textContent=validPages;
-            status.className='status success';
-            status.textContent=`✓ Found valid page (${id}) – redirecting…`;
-            setTimeout(()=>{window.location.href=displayUrl;},1200);
-            return true;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Rentry Explorer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        // tiny pause to avoid hammering the host
-        await new Promise(r=>setTimeout(r,120));
-    }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
 
-    status.className='status error';
-    status.textContent=`✗ Could not locate a valid page after ${maxAttempts} attempts. Try again!`;
-    btn.disabled=false;
-    return false;
-}
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
 
-/* ---------- BUTTON HANDLER ---------- */
-btn.addEventListener('click',async()=>{
-    btn.disabled=true;
-    status.textContent='';
-    await findValidPage();
-    // re‑enable after a short cooldown (even on success we let the redirect happen)
-    setTimeout(()=>{btn.disabled=false;},3000);
-});
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 50%;
+            animation: float 15s infinite;
+        }
 
-/* ---------- OPTIONAL: SPACE BAR TRIGGER ---------- */
-document.addEventListener('keydown',e=>{
-    if(e.code==='Space' && !btn.disabled){
-        e.preventDefault();
-        btn.click();
-    }
-});
-</script>
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .subtitle {
+            color: #a0a0b8;
+            font-size: 1.1rem;
+            margin-bottom: 3rem;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .button-container {
+            position: relative;
+            display: inline-block;
+            animation: fadeInScale 1s ease;
+        }
+
+        .glow-effect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            filter: blur(40px);
+            animation: pulse 3s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.5;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 0.8;
+            }
+        }
+
+        #randomButton {
+            position: relative;
+            padding: 2rem 4rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #ffffff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.4);
+            overflow: hidden;
+        }
+
+        #randomButton::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        #randomButton:hover::before {
+            left: 100%;
+        }
+
+        #randomButton:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(139, 92, 246, 0.6);
+        }
+
+        #randomButton:active {
+            transform: translateY(-2px);
+        }
+
+        #randomButton:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            transform: none;
+        }
+
+        .status {
+            margin-top: 2rem;
+            color: #a0a0b8;
+            font-size: 1rem;
+            min-height: 60px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .status.loading {
+            color: #fbbf24;
+        }
+
+        .status.success {
+            color: #10b981;
+        }
+
+        .status.error {
+            color: #ef4444;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .stats {
+            margin-top: 3rem;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stats-item {
+            display: inline-block;
+            margin: 0 1.5rem;
+            color: #a0a0b8;
+        }
+
+        .stats-number {
+            display: block;
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stats-label {
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .log {
+            margin-top: 1rem;
+            max-height: 100px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            color: #666;
+            text-align: left;
+            padding: 0.5rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .log-entry {
+            padding: 2px 0;
+        }
+
+        .log-entry.valid {
+            color: #10b981;
+        }
+
+        .log-entry.invalid {
+            color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            #randomButton {
+                padding: 1.5rem 3rem;
+                font-size: 1.2rem;
+            }
+
+            .stats-item {
+                display: block;
+                margin: 1rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+
+    <div class="container">
+        <h1>✨ Rentry Explorer</h1>
+        <p class="subtitle">Discover random pages across the Rentry universe</p>
+
+        <div class="button-container">
+            <div class="glow-effect"></div>
+            <button id="randomButton">
+                🎲 Take Me Somewhere
+            </button>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="stats">
+            <div class="stats-item">
+                <span class="stats-number" id="attemptsCount">0</span>
+                <span class="stats-label">Checked</span>
+            </div>
+            <div class="stats-item">
+                <span class="stats-number" id="validCount">0</span>
+                <span class="stats-label">Found Valid</span>
+            </div>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        // Create floating particles
+        const particlesContainer = document.getElementById('particles');
+        for (let i = 0; i < 50; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 15 + 's';
+            particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+            particlesContainer.appendChild(particle);
+        }
+
+        const button = document.getElementById('randomButton');
+        const status = document.getElementById('status');
+        const attemptsCount = document.getElementById('attemptsCount');
+        const validCount = document.getElementById('validCount');
+        const logDiv = document.getElementById('log');
+
+        let attempts = 0;
+        let validPages = 0;
+
+        function addLog(message, isValid) {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${isValid ? 'valid' : 'invalid'}`;
+            entry.textContent = message;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+            
+            // Keep only last 20 entries
+            while (logDiv.children.length > 20) {
+                logDiv.removeChild(logDiv.lastChild);
+            }
+        }
+
+        // Generate random string - shorter strings more likely to exist
+        function generateRandomString(length) {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        // Common word patterns that might exist on rentry
+        function generateSmartId() {
+            const patterns = [
+                () => generateRandomString(2), // Very short - high chance
+                () => generateRandomString(3), // Short
+                () => generateRandomString(4), // Medium
+                // Common prefixes
+                () => 'test' + generateRandomString(1),
+                () => 'my' + generateRandomString(2),
+                () => 'the' + generateRandomString(2),
+                () => generateRandomString(2) + '123',
+                () => generateRandomString(3) + '1',
+                // Single common words/letters
+                () => generateRandomString(1) + generateRandomString(1),
+            ];
+            
+            const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+            return pattern();
+        }
+
+        // Check if a rentry page exists using CORS proxy
+        async function checkRentryExists(id) {
+            try {
+                // Use allorigins.win as CORS proxy
+                const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                const targetUrl = encodeURIComponent(`https://rentry.co/${id}`);
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                
+                const response = await fetch(proxyUrl + targetUrl, {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    return { exists: false, reason: 'fetch failed' };
+                }
+                
+                const html = await response.text();
+                
+                // Check for 404 error page indicators from the HTML you provided
+                if (html.includes('<title>Error</title>')) {
+                    return { exists: false, reason: '404 page' };
+                }
+                
+                if (html.includes('404 Not Found')) {
+                    return { exists: false, reason: '404 error' };
+                }
+                
+                if (html.includes('class="h4 text-gray-dark my-3 no-pointer">Error</h1>')) {
+                    return { exists: false, reason: 'error page' };
+                }
+                
+                // Check for valid page indicators
+                // Valid rentry pages have entry content
+                if (html.includes('entry-content') || 
+                    html.includes('class="entry"') ||
+                    html.includes('id="paste-content"') ||
+                    html.includes('ntry">')) {
+                    return { exists: true, reason: 'valid content found' };
+                }
+                
+                // If we got HTML but no error and no clear content markers, 
+                // check if it has substantial content
+                if (html.length > 5000 && !html.includes('Error')) {
+                    return { exists: true, reason: 'has content' };
+                }
+                
+                return { exists: false, reason: 'no content markers' };
+                
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    return { exists: false, reason: 'timeout' };
+                }
+                return { exists: false, reason: error.message };
+            }
+        }
+
+        // Find a valid random rentry page
+        async function findValidPage() {
+            const maxAttempts = 100;
+            let currentAttempts = 0;
+            
+            logDiv.innerHTML = '';
+
+            while (currentAttempts < maxAttempts) {
+                currentAttempts++;
+                attempts++;
+                attemptsCount.textContent = attempts;
+
+                const randomId = generateSmartId();
+
+                status.className = 'status loading';
+                status.innerHTML = `<span class="spinner"></span>Checking "/${randomId}"... (${currentAttempts}/${maxAttempts})`;
+
+                const result = await checkRentryExists(randomId);
+                
+                addLog(`/${randomId} - ${result.reason}`, result.exists);
+
+                if (result.exists) {
+                    validPages++;
+                    validCount.textContent = validPages;
+                    status.className = 'status success';
+                    status.innerHTML = `✓ Found valid page: <strong>rentry.co/${randomId}</strong><br>Redirecting in 2 seconds...`;
+                    
+                    setTimeout(() => {
+                        window.location.href = `https://rentry.co/${randomId}`;
+                    }, 2000);
+                    return true;
+                }
+
+                // Small delay to avoid overwhelming the proxy
+                await new Promise(resolve => setTimeout(resolve, 150));
+            }
+
+            status.className = 'status error';
+            status.textContent = `✗ Couldn't find a valid page after ${maxAttempts} attempts. Try again!`;
+            return false;
+        }
+
+        button.addEventListener('click', async () => {
+            button.disabled = true;
+            button.textContent = '🔍 Searching...';
+            status.textContent = '';
+            
+            const found = await findValidPage();
+            
+            if (!found) {
+                button.disabled = false;
+                button.textContent = '🎲 Take Me Somewhere';
+            }
+        });
+
+        // Easter egg: Press space to trigger
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !button.disabled) {
+                e.preventDefault();
+                button.click();
+            }
+        });
+    </script>
 </body>
 </html>
