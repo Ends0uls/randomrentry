@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rentry Randomizer</title>
+    <style>
+        /* --- CSS Variables & Reset --- */
+        :root {
+            --bg-color: #0f0f11;
+            --card-bg: #18181b;
+            --text-primary: #e4e4e7;
+            --text-secondary: #a1a1aa;
+            --accent-color: #8b5cf6; /* Violet */
+            --accent-hover: #7c3aed;
+            --error-color: #ef4444;
+            --success-color: #22c55e;
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* --- Main Container --- */
+        .container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.05em;
+            background: linear-gradient(to right, #fff, #a1a1aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            font-size: 1rem;
+        }
+
+        /* --- The Big Button --- */
+        .magic-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 1.2rem 3rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+            border-radius: 9999px; /* Pill shape */
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.4);
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-width: 220px;
+        }
+
+        .magic-btn:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 15px 30px -5px rgba(139, 92, 246, 0.6);
+        }
+
+        .magic-btn:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        .magic-btn:disabled {
+            background-color: #3f3f46;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* --- Loading Spinner --- */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            display: none; /* Hidden by default */
+        }
+
+        .loading .spinner {
+            display: block;
+        }
+
+        .loading .btn-text {
+            opacity: 0.7;
+        }
+
+        /* --- Status Messages --- */
+        .status-area {
+            margin-top: 2rem;
+            height: 24px; /* Fixed height to prevent jumping */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .status-msg {
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .status-msg.visible {
+            opacity: 1;
+        }
+
+        .status-msg.error { color: var(--error-color); }
+        .status-msg.success { color: var(--success-color); }
+
+        /* --- Footer --- */
+        .footer {
+            position: absolute;
+            bottom: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        /* --- Animations --- */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* --- Mobile Responsiveness --- */
+        @media (max-width: 480px) {
+            h1 { font-size: 2rem; }
+            .magic-btn { padding: 1rem 2rem; font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Explore the Void</h1>
+        <p class="subtitle">Discover a random Rentry page. Verified and valid.</p>
+
+        <button id="randomBtn" class="magic-btn">
+            <span class="spinner"></span>
+            <span class="btn-text">Launch Discovery</span>
+        </button>
+
+        <div class="status-area">
+            <span id="statusMsg" class="status-msg"></span>
+        </div>
+    </div>
+
+    <div class="footer">
+        Powered by Rentry.co
+    </div>
+
+    <script>
+        // --- Configuration ---
+        // We use a public CORS proxy to bypass browser restrictions 
+        // when checking Rentry pages. 
+        const PROXY_URL = 'https://api.allorigins.win/get?url=';
+        
+        const btn = document.getElementById('randomBtn');
+        const statusMsg = document.getElementById('statusMsg');
+        const btnText = document.querySelector('.btn-text');
+
+        // --- Event Listener ---
+        btn.addEventListener('click', async () => {
+            if (btn.disabled) return;
+
+            setLoading(true);
+            clearStatus();
+
+            try {
+                const validUrl = await findValidRentry();
+                if (validUrl) {
+                    showStatus(`Found valid page! Redirecting...`, 'success');
+                    // Small delay to let the user see the success message
+                    setTimeout(() => {
+                        window.location.href = validUrl;
+                    }, 800);
+                } else {
+                    showStatus('Could not find a valid page. Try again.', 'error');
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error(err);
+                showStatus('An error occurred. Please try again.', 'error');
+                setLoading(false);
+            }
+        });
+
+        // --- Core Logic ---
+
+        /**
+         * Main loop: Generates a random code and verifies it.
+         * Retries up to 5 times if a page is invalid/empty.
+         */
+        async function findValidRentry(retries = 5) {
+            for (let i = 0; i < retries; i++) {
+                const code = generateRandomCode();
+                const url = `https://rentry.org/${code}`;
+                
+                const isValid = await verifyRentry(url);
+                
+                if (isValid) {
+                    return url;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Generates a random alphanumeric string (6-10 chars).
+         * Rentry codes are usually lowercase, but we include uppercase just in case.
+         */
+        function generateRandomCode() {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            const length = Math.floor(Math.random() * 5) + 6; // Random length between 6 and 10
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        /**
+         * Verifies if the URL exists and has content.
+         * Uses a CORS proxy to fetch the HTML content.
+         */
+        async function verifyRentry(url) {
+            try {
+                const response = await fetch(PROXY_URL + encodeURIComponent(url));
+                
+                if (!response.ok) return false;
+                
+                const data = await response.json();
+                
+                // If the proxy returns an error or the page doesn't exist
+                if (data.contents === null) return false;
+
+                const html = data.contents;
+                
+                // 1. Check if it's a 404 page (Rentry specific check)
+                if (html.includes('This entry does not exist')) return false;
+
+                // 2. Check if the page has actual content (not just whitespace or empty divs)
+                // We look for the content div and strip HTML tags to check text length.
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const contentDiv = doc.querySelector('.content'); // Rentry's main content container
+                
+                if (!contentDiv) return false;
+
+                const text = contentDiv.textContent || contentDiv.innerText;
+                const cleanText = text.replace(/\s+/g, ' ').trim();
+
+                // Minimum character count to be considered a "valid" page (filters empty pages)
+                return cleanText.length > 20; 
+
+            } catch (error) {
+                console.error("Verification failed:", error);
+                return false;
+            }
+        }
+
+        // --- UI Helpers ---
+
+        function setLoading(isLoading) {
+            btn.disabled = isLoading;
+            if (isLoading) {
+                btn.classList.add('loading');
+                btnText.textContent = 'Searching...';
+            } else {
+                btn.classList.remove('loading');
+                btnText.textContent = 'Launch Discovery';
+            }
+        }
+
+        function showStatus(message, type) {
+            statusMsg.textContent = message;
+            statusMsg.className = `status-msg ${type} visible`;
+        }
+
+        function clearStatus() {
+            statusMsg.classList.remove('visible');
+            setTimeout(() => {
+                statusMsg.textContent = '';
+            }, 300);
+        }
+    </script>
+</body>
+</html>
